@@ -1,0 +1,453 @@
+<!-- Validador GTFS — Memorando CIM Tâmega e Sousa -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+  :root {
+    --ink: #1c2b24;
+    --paper: #f6f4ee;
+    --rail: #2c4a3e;
+    --rail-light: #e7ede9;
+    --amber: #c97f2e;
+    --red: #a31a16;
+    --line: #cfd6cf;
+    --mono: 'IBM Plex Mono', 'SF Mono', Menlo, monospace;
+    --sans: 'IBM Plex Sans', Inter, system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 40px 24px 80px; }
+
+  .masthead {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    border-bottom: 3px solid var(--rail);
+    padding-bottom: 14px;
+    margin-bottom: 6px;
+  }
+  .masthead h1 {
+    font-family: var(--mono);
+    font-size: 15px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin: 0;
+    color: var(--rail);
+  }
+  .masthead .tag {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: #6b7a72;
+    letter-spacing: 0.04em;
+  }
+  .subtitle {
+    font-size: 14px;
+    color: #4a5750;
+    margin: 10px 0 30px;
+    line-height: 1.5;
+    max-width: 60ch;
+  }
+
+  .dropzone {
+    border: 2px dashed var(--rail);
+    border-radius: 4px;
+    padding: 48px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+    background: var(--rail-light);
+  }
+  .dropzone.drag {
+    background: #dbe8e0;
+    border-color: var(--amber);
+  }
+  .dropzone .icon {
+    font-family: var(--mono);
+    font-size: 26px;
+    color: var(--rail);
+    margin-bottom: 10px;
+    letter-spacing: 0.1em;
+  }
+  .dropzone p { margin: 4px 0; font-size: 14px; color: #3c4a43; }
+  .dropzone .hint { font-size: 12px; color: #7c8a83; }
+  .dropzone input { display: none; }
+
+  .filebar {
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 16px;
+    padding: 10px 14px;
+    background: white;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+  .filebar button {
+    background: none;
+    border: none;
+    color: var(--rail);
+    text-decoration: underline;
+    cursor: pointer;
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+
+  .report { margin-top: 34px; display: none; }
+  .summary {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+  .stat {
+    border: 1px solid var(--line);
+    background: white;
+    border-radius: 4px;
+    padding: 14px 16px;
+  }
+  .stat .n { font-family: var(--mono); font-size: 26px; font-weight: 600; line-height: 1; }
+  .stat .l { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: #6b7a72; margin-top: 6px; }
+  .stat.err .n { color: var(--red); }
+  .stat.warn .n { color: var(--amber); }
+  .stat.ok .n { color: var(--rail); }
+
+  .section-label {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #4a5750;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 6px;
+    margin: 26px 0 12px;
+  }
+
+  .item {
+    border-left: 3px solid var(--line);
+    padding: 8px 0 8px 14px;
+    margin-bottom: 8px;
+    font-size: 13.5px;
+    line-height: 1.5;
+  }
+  .item.err { border-color: var(--red); }
+  .item.warn { border-color: var(--amber); }
+  .item .rule {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: #6b7a72;
+    display: block;
+    margin-bottom: 2px;
+  }
+
+  .all-clear {
+    padding: 20px;
+    border: 1px solid var(--rail);
+    background: var(--rail-light);
+    border-radius: 4px;
+    font-size: 14px;
+    color: var(--rail);
+  }
+
+  .footnote {
+    margin-top: 30px;
+    font-size: 12px;
+    color: #7c8a83;
+    line-height: 1.6;
+    border-top: 1px solid var(--line);
+    padding-top: 16px;
+  }
+  .footnote a { color: var(--rail); }
+
+  .actions { margin-top: 20px; display: flex; gap: 10px; }
+  .actions button {
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 8px 14px;
+    border: 1px solid var(--rail);
+    background: white;
+    color: var(--rail);
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  .actions button:hover { background: var(--rail-light); }
+
+  .loading { display: none; font-family: var(--mono); font-size: 13px; color: #6b7a72; margin-top: 16px; }
+</style>
+
+<div class="wrap">
+  <div class="masthead">
+    <h1>Validador GTFS</h1>
+    <span class="tag">Memorando V12.2025 — CIM Tâmega e Sousa</span>
+  </div>
+  <p class="subtitle">
+    Verifica o teu feed GTFS (.zip) contra as regras próprias do caderno de encargos —
+    formato de <code>stop_id</code>, <code>trip_headsign</code>, nomenclatura de
+    <code>service_id</code>, ficheiros mínimos e outros campos obrigatórios.
+    Corre inteiramente no browser; nenhum ficheiro é enviado para fora deste separador.
+  </p>
+
+  <div class="dropzone" id="dropzone">
+    <div class="icon">[ ZIP ]</div>
+    <p>Arrasta o ficheiro GTFS (.zip) para aqui</p>
+    <p class="hint">ou clica para escolher um ficheiro</p>
+    <input type="file" id="fileInput" accept=".zip" />
+  </div>
+
+  <div class="filebar" id="filebar">
+    <span id="filename"></span>
+    <button id="clearBtn">trocar ficheiro</button>
+  </div>
+
+  <div class="loading" id="loading">A validar…</div>
+
+  <div class="report" id="report"></div>
+</div>
+
+<script>
+const FICHEIROS_MINIMOS = [
+  "agency.txt", "stops.txt", "routes.txt", "trips.txt",
+  "stop_times.txt", "calendar.txt", "calendar_dates.txt",
+  "shapes.txt", "transfers.txt", "feed_info.txt",
+];
+const FICHEIRO_AUXILIAR = "patterns_shapeid.txt";
+const PREFIXO_LOTE = /^(UT[1-4])_/i;
+const REGEX_STOP_ID = /^[a-z]{2,5}_[0-9]+$/;
+const DIAS = ["monday","tuesday","wednesday","thursday","friday","saturday","sunday"];
+
+function parseCSV(text) {
+  // Simple CSV parser handling quoted fields
+  const rows = [];
+  let i = 0, field = '', row = [], inQuotes = false;
+  text = text.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n');
+  while (i < text.length) {
+    const c = text[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (text[i+1] === '"') { field += '"'; i += 2; continue; }
+        inQuotes = false; i++; continue;
+      }
+      field += c; i++; continue;
+    } else {
+      if (c === '"') { inQuotes = true; i++; continue; }
+      if (c === ',') { row.push(field); field = ''; i++; continue; }
+      if (c === '\n') { row.push(field); rows.push(row); row = []; field = ''; i++; continue; }
+      field += c; i++; continue;
+    }
+  }
+  if (field.length || row.length) { row.push(field); rows.push(row); }
+  if (!rows.length) return [];
+  const header = rows[0];
+  const out = [];
+  for (let r = 1; r < rows.length; r++) {
+    if (rows[r].length === 1 && rows[r][0] === '') continue;
+    const obj = {};
+    header.forEach((h, idx) => obj[h.trim()] = (rows[r][idx] ?? '').trim());
+    out.push(obj);
+  }
+  return out;
+}
+
+class Relatorio {
+  constructor() { this.erros = []; this.avisos = []; }
+  erro(regra, msg) { this.erros.push({regra, msg}); }
+  aviso(regra, msg) { this.avisos.push({regra, msg}); }
+}
+
+async function lerCSVDoZip(zip, nome) {
+  const f = zip.file(nome);
+  if (!f) return null;
+  const text = await f.async('string');
+  return parseCSV(text);
+}
+
+async function validar(zip) {
+  const rel = new Relatorio();
+  const nomesNoZip = Object.keys(zip.files).map(n => n.split('/').pop());
+
+  for (const ficheiro of FICHEIROS_MINIMOS) {
+    if (!zip.file(ficheiro)) {
+      rel.erro("Ficheiros mínimos", `Falta o ficheiro obrigatório \`${ficheiro}\`.`);
+    }
+  }
+  if (!zip.file(FICHEIRO_AUXILIAR)) {
+    rel.aviso("Ficheiro auxiliar", `Falta o ficheiro auxiliar \`${FICHEIRO_AUXILIAR}\` (deve acompanhar cada nova versão de GTFS, com route_id, pattern_name, direction_id e shape_id).`);
+  }
+
+  const agency = await lerCSVDoZip(zip, "agency.txt");
+  if (agency) {
+    const vazios = agency.filter(r => !r.agency_name).length;
+    if (vazios) rel.erro("agency.txt", `${vazios} linha(s) com agency_name vazio (deve ser o nome da concessionária).`);
+  }
+
+  const stops = await lerCSVDoZip(zip, "stops.txt");
+  if (stops) {
+    const invalidos = stops.filter(r => !REGEX_STOP_ID.test(r.stop_id || ''));
+    if (invalidos.length) {
+      const ex = invalidos.slice(0,5).map(r => r.stop_id).join(', ');
+      rel.erro("stops.txt — stop_id", `${invalidos.length} stop_id(s) não seguem o formato 'acrónimo_município (minúsculas) + "_" + código numérico'. Exemplos: ${ex}`);
+    }
+    const semZona = stops.filter(r => !r.zone_id).length;
+    if (semZona) rel.aviso("stops.txt — zone_id", `${semZona} paragens sem zone_id preenchido.`);
+  }
+
+  const routes = await lerCSVDoZip(zip, "routes.txt");
+  if (routes) {
+    ["route_id","route_short_name","route_long_name","agency_id","route_color","route_text_color"].forEach(campo => {
+      const vazios = routes.filter(r => !r[campo]).length;
+      if (vazios) rel.aviso("routes.txt", `${vazios} linha(s) com '${campo}' vazio.`);
+    });
+  }
+
+  const trips = await lerCSVDoZip(zip, "trips.txt");
+  if (trips) {
+    const semDir = trips.filter(r => !r.direction_id).length;
+    const semShape = trips.filter(r => !r.shape_id).length;
+    const semHeadsign = trips.filter(r => !r.trip_headsign).length;
+    if (semDir) rel.erro("trips.txt — direction_id", `${semDir} viagem(ns) sem direction_id (obrigatório).`);
+    if (semShape) rel.erro("trips.txt — shape_id", `${semShape} viagem(ns) sem shape_id (obrigatório).`);
+    if (semHeadsign) rel.erro("trips.txt — trip_headsign", `${semHeadsign}/${trips.length} viagem(ns) sem trip_headsign (deve identificar o destino/referência, como na bandeira do autocarro).`);
+  }
+
+  const stopTimes = await lerCSVDoZip(zip, "stop_times.txt");
+  if (stopTimes) {
+    ["arrival_time","departure_time","stop_id","shape_dist_traveled"].forEach(campo => {
+      const vazios = stopTimes.filter(r => !r[campo]).length;
+      if (vazios) rel.erro("stop_times.txt", `${vazios} registo(s) com '${campo}' vazio (obrigatório).`);
+    });
+  }
+
+  const calendar = await lerCSVDoZip(zip, "calendar.txt");
+  if (calendar) {
+    const prefixosLote = calendar.filter(r => PREFIXO_LOTE.test(r.service_id || '')).map(r => r.service_id);
+    const todosOsDias = calendar.filter(r => DIAS.every(d => (r[d] || '0') === '1')).map(r => r.service_id);
+    if (prefixosLote.length) {
+      const ex = [...new Set(prefixosLote)].slice(0,8).join(', ');
+      rel.erro("calendar.txt — service_id", `${prefixosLote.length} service_id(s) usam prefixo de lote/operador (UT1-4) em vez do acrónimo do MUNICÍPIO, como exige o memorando (ex: BAO_E-U). Exemplos: ${ex}`);
+    }
+    if (todosOsDias.length) {
+      const ex = todosOsDias.slice(0,8).join(', ');
+      rel.erro("calendar.txt — separação U/S/DF", `${todosOsDias.length} service_id(s) circulam todos os 7 dias sem estarem separados em três (ex: X-U, X-S, X-DF). Exemplos: ${ex}`);
+    }
+  }
+
+  const calendarDates = await lerCSVDoZip(zip, "calendar_dates.txt");
+  if (calendarDates) {
+    const invalidos = calendarDates.filter(r => !["1","2"].includes(r.exception_type));
+    if (invalidos.length) rel.erro("calendar_dates.txt — exception_type", `${invalidos.length} registo(s) com exception_type fora de {1, 2}.`);
+  }
+
+  const shapes = await lerCSVDoZip(zip, "shapes.txt");
+  if (shapes) {
+    const semDist = shapes.filter(r => !r.shape_dist_traveled).length;
+    if (semDist) rel.erro("shapes.txt — shape_dist_traveled", `${semDist} ponto(s) sem shape_dist_traveled (obrigatório, em metros).`);
+  }
+
+  const feedInfo = await lerCSVDoZip(zip, "feed_info.txt");
+  if (feedInfo && feedInfo.length) {
+    feedInfo.forEach(r => {
+      ["feed_start_date","feed_end_date","feed_version"].forEach(campo => {
+        if (!r[campo]) rel.erro("feed_info.txt", `Campo '${campo}' vazio (obrigatório).`);
+      });
+    });
+  } else if (zip.file("feed_info.txt")) {
+    rel.aviso("feed_info.txt", "Ficheiro presente mas vazio ou ilegível.");
+  }
+
+  const transfers = await lerCSVDoZip(zip, "transfers.txt");
+  if (transfers && transfers.length === 0) {
+    rel.aviso("transfers.txt", "Ficheiro presente mas sem registos.");
+  }
+
+  return rel;
+}
+
+function render(rel, nomeFicheiro) {
+  const el = document.getElementById('report');
+  const totalErr = rel.erros.length, totalWarn = rel.avisos.length;
+  let html = `
+    <div class="summary">
+      <div class="stat err"><div class="n">${totalErr}</div><div class="l">Erros</div></div>
+      <div class="stat warn"><div class="n">${totalWarn}</div><div class="l">Avisos</div></div>
+      <div class="stat ok"><div class="n">${nomeFicheiro ? '✓' : '—'}</div><div class="l">Ficheiro</div></div>
+    </div>
+  `;
+
+  if (!totalErr && !totalWarn) {
+    html += `<div class="all-clear">Nenhuma não conformidade encontrada nas regras verificadas.</div>`;
+  }
+
+  if (totalErr) {
+    html += `<div class="section-label">Erros</div>`;
+    rel.erros.forEach(({regra, msg}) => {
+      html += `<div class="item err"><span class="rule">${regra}</span>${msg}</div>`;
+    });
+  }
+  if (totalWarn) {
+    html += `<div class="section-label">Avisos</div>`;
+    rel.avisos.forEach(({regra, msg}) => {
+      html += `<div class="item warn"><span class="rule">${regra}</span>${msg}</div>`;
+    });
+  }
+
+  html += `
+    <div class="footnote">
+      Este relatório cobre apenas as regras específicas do Memorando de Gestão de Alterações GTFS (V12.2025).
+      Corre também o validador oficial
+      <a href="https://gtfs-validator.mobilitydata.org/" target="_blank">gtfs-validator.mobilitydata.org</a>
+      para validação estrutural completa da norma GTFS.
+    </div>
+  `;
+
+  el.innerHTML = html;
+  el.style.display = 'block';
+}
+
+async function processarFicheiro(file) {
+  document.getElementById('loading').style.display = 'block';
+  document.getElementById('report').style.display = 'none';
+  document.getElementById('filebar').style.display = 'flex';
+  document.getElementById('filename').textContent = file.name + '  ·  ' + (file.size/1024/1024).toFixed(2) + ' MB';
+  document.getElementById('dropzone').style.display = 'none';
+
+  try {
+    const buffer = await file.arrayBuffer();
+    const zip = await JSZip.loadAsync(buffer);
+    const rel = await validar(zip);
+    render(rel, file.name);
+  } catch (e) {
+    document.getElementById('report').innerHTML = `<div class="item err"><span class="rule">Erro</span>Não foi possível ler o ficheiro: ${e.message}</div>`;
+    document.getElementById('report').style.display = 'block';
+  } finally {
+    document.getElementById('loading').style.display = 'none';
+  }
+}
+
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('fileInput');
+
+dropzone.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', (e) => {
+  if (e.target.files[0]) processarFicheiro(e.target.files[0]);
+});
+dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('drag'); });
+dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag'));
+dropzone.addEventListener('drop', (e) => {
+  e.preventDefault();
+  dropzone.classList.remove('drag');
+  const file = e.dataTransfer.files[0];
+  if (file) processarFicheiro(file);
+});
+
+document.getElementById('clearBtn').addEventListener('click', () => {
+  document.getElementById('filebar').style.display = 'none';
+  document.getElementById('dropzone').style.display = 'block';
+  document.getElementById('report').style.display = 'none';
+  fileInput.value = '';
+});
+</script>
