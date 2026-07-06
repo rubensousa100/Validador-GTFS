@@ -1,453 +1,757 @@
-<!-- Validador GTFS — Memorando CIM Tâmega e Sousa -->
+<!-- Validador GTFS — Memorando CIM Tâmega e Sousa · v2 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
   :root {
-    --ink: #1c2b24;
-    --paper: #f6f4ee;
-    --rail: #2c4a3e;
-    --rail-light: #e7ede9;
-    --amber: #c97f2e;
-    --red: #a31a16;
-    --line: #cfd6cf;
-    --mono: 'IBM Plex Mono', 'SF Mono', Menlo, monospace;
+    --ink: #16241d;
+    --ink-soft: #46564d;
+    --ink-faint: #77877d;
+    --paper: #f2f0e9;
+    --card: #fbfaf6;
+    --rail: #1e4436;
+    --rail-mid: #3c6a56;
+    --rail-tint: #e3ebe5;
+    --amber: #b06a14;
+    --amber-tint: #f6ead6;
+    --red: #9c1f16;
+    --red-tint: #f5e3e0;
+    --ok: #2e6b4f;
+    --line: #d8d5c9;
+    --mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
     --sans: 'IBM Plex Sans', Inter, system-ui, sans-serif;
+    --radius: 6px;
   }
   * { box-sizing: border-box; }
+  html, body { margin: 0; }
   body {
-    margin: 0;
-    background: var(--paper);
+    background:
+      repeating-linear-gradient(90deg, transparent 0 118px, rgba(30,68,54,.045) 118px 120px),
+      var(--paper);
     color: var(--ink);
     font-family: var(--sans);
     -webkit-font-smoothing: antialiased;
   }
-  .wrap { max-width: 880px; margin: 0 auto; padding: 40px 24px 80px; }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 44px 24px 90px; }
 
+  /* ── masthead: bilhete / linha de autocarro ─────────────────── */
   .masthead {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    border-bottom: 3px solid var(--rail);
-    padding-bottom: 14px;
-    margin-bottom: 6px;
+    background: var(--rail);
+    color: #eef4ef;
+    border-radius: var(--radius);
+    padding: 22px 26px 20px;
+    position: relative;
+    overflow: hidden;
   }
-  .masthead h1 {
-    font-family: var(--mono);
-    font-size: 15px;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    margin: 0;
-    color: var(--rail);
+  .masthead::after {
+    content: '';
+    position: absolute; left: 26px; right: 26px; bottom: 12px;
+    border-bottom: 2px dashed rgba(255,255,255,.28);
   }
-  .masthead .tag {
+  .masthead .route-badge {
+    display: inline-block;
     font-family: var(--mono);
     font-size: 11px;
-    color: #6b7a72;
-    letter-spacing: 0.04em;
+    letter-spacing: .14em;
+    background: rgba(255,255,255,.14);
+    border: 1px solid rgba(255,255,255,.3);
+    border-radius: 3px;
+    padding: 3px 9px;
+    margin-bottom: 10px;
+  }
+  .masthead h1 {
+    margin: 0 0 4px;
+    font-size: 24px;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+  }
+  .masthead .sub {
+    font-size: 13px;
+    color: #c4d5c9;
+    margin-bottom: 16px;
   }
   .subtitle {
-    font-size: 14px;
-    color: #4a5750;
-    margin: 10px 0 30px;
-    line-height: 1.5;
-    max-width: 60ch;
+    font-size: 13.5px;
+    color: var(--ink-soft);
+    line-height: 1.6;
+    margin: 18px 2px 26px;
+    max-width: 66ch;
+  }
+  .subtitle code {
+    font-family: var(--mono); font-size: 12px;
+    background: var(--rail-tint); padding: 1px 5px; border-radius: 3px;
   }
 
+  /* ── dropzone ───────────────────────────────────────────────── */
   .dropzone {
-    border: 2px dashed var(--rail);
-    border-radius: 4px;
-    padding: 48px 24px;
+    border: 2px dashed var(--rail-mid);
+    border-radius: var(--radius);
+    padding: 46px 24px;
     text-align: center;
     cursor: pointer;
-    transition: background 0.15s, border-color 0.15s;
-    background: var(--rail-light);
+    transition: background .15s, border-color .15s, transform .1s;
+    background: var(--card);
   }
-  .dropzone.drag {
-    background: #dbe8e0;
-    border-color: var(--amber);
+  .dropzone:hover { background: var(--rail-tint); }
+  .dropzone.drag { background: var(--rail-tint); border-color: var(--amber); transform: scale(1.005); }
+  .dropzone .zt {
+    font-family: var(--mono); font-size: 13px; letter-spacing: .16em;
+    color: var(--rail); border: 1.5px solid var(--rail);
+    display: inline-block; padding: 6px 14px; border-radius: 4px; margin-bottom: 14px;
   }
-  .dropzone .icon {
-    font-family: var(--mono);
-    font-size: 26px;
-    color: var(--rail);
-    margin-bottom: 10px;
-    letter-spacing: 0.1em;
-  }
-  .dropzone p { margin: 4px 0; font-size: 14px; color: #3c4a43; }
-  .dropzone .hint { font-size: 12px; color: #7c8a83; }
+  .dropzone p { margin: 3px 0; font-size: 14.5px; color: var(--ink-soft); }
+  .dropzone .hint { font-size: 12px; color: var(--ink-faint); }
   .dropzone input { display: none; }
 
   .filebar {
     display: none;
-    align-items: center;
-    justify-content: space-between;
-    margin-top: 16px;
-    padding: 10px 14px;
-    background: white;
-    border: 1px solid var(--line);
-    border-radius: 4px;
-    font-family: var(--mono);
-    font-size: 12px;
+    align-items: center; justify-content: space-between;
+    margin-top: 0;
+    padding: 12px 16px;
+    background: var(--rail);
+    color: #eef4ef;
+    border-radius: var(--radius);
+    font-family: var(--mono); font-size: 12.5px;
   }
   .filebar button {
-    background: none;
-    border: none;
-    color: var(--rail);
-    text-decoration: underline;
-    cursor: pointer;
-    font-family: var(--mono);
-    font-size: 12px;
+    background: none; border: 1px solid rgba(255,255,255,.4);
+    color: #eef4ef; border-radius: 4px; padding: 5px 12px;
+    cursor: pointer; font-family: var(--mono); font-size: 11.5px;
   }
+  .filebar button:hover { background: rgba(255,255,255,.12); }
 
-  .report { margin-top: 34px; display: none; }
-  .summary {
+  .loading {
+    display: none; margin-top: 22px;
+    font-family: var(--mono); font-size: 13px; color: var(--ink-soft);
+  }
+  .loading .bar {
+    height: 4px; background: var(--line); border-radius: 2px; overflow: hidden; margin-top: 8px;
+  }
+  .loading .bar i {
+    display: block; height: 100%; width: 35%;
+    background: var(--rail-mid); border-radius: 2px;
+    animation: slide 1.1s ease-in-out infinite;
+  }
+  @keyframes slide { 0%{margin-left:-35%} 100%{margin-left:100%} }
+
+  /* ── report ─────────────────────────────────────────────────── */
+  .report { margin-top: 30px; display: none; }
+
+  .verdict {
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    font-size: 15px; font-weight: 600;
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 20px;
+  }
+  .verdict .dot { width: 12px; height: 12px; border-radius: 50%; flex: none; }
+  .verdict.fail { background: var(--red-tint); color: var(--red); }
+  .verdict.fail .dot { background: var(--red); }
+  .verdict.warn { background: var(--amber-tint); color: var(--amber); }
+  .verdict.warn .dot { background: var(--amber); }
+  .verdict.pass { background: var(--rail-tint); color: var(--ok); }
+  .verdict.pass .dot { background: var(--ok); }
+  .verdict small { font-weight: 400; font-size: 12.5px; opacity: .85; }
+
+  .overview {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 12px;
-    margin-bottom: 28px;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 10px;
+    margin-bottom: 26px;
   }
-  .stat {
+  .ov {
+    background: var(--card);
     border: 1px solid var(--line);
-    background: white;
-    border-radius: 4px;
-    padding: 14px 16px;
+    border-radius: var(--radius);
+    padding: 12px 14px;
   }
-  .stat .n { font-family: var(--mono); font-size: 26px; font-weight: 600; line-height: 1; }
-  .stat .l { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: #6b7a72; margin-top: 6px; }
-  .stat.err .n { color: var(--red); }
-  .stat.warn .n { color: var(--amber); }
-  .stat.ok .n { color: var(--rail); }
+  .ov .n { font-family: var(--mono); font-size: 19px; font-weight: 600; color: var(--rail); }
+  .ov .l { font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-faint); margin-top: 4px; }
 
-  .section-label {
-    font-family: var(--mono);
-    font-size: 12px;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: #4a5750;
-    border-bottom: 1px solid var(--line);
-    padding-bottom: 6px;
-    margin: 26px 0 12px;
+  .tabs {
+    display: flex; gap: 8px; margin: 4px 0 16px;
+    border-bottom: 2px solid var(--line);
   }
+  .tab {
+    font-family: var(--mono); font-size: 12px; letter-spacing: .03em;
+    padding: 8px 14px 9px; cursor: pointer;
+    border: none; background: none; color: var(--ink-faint);
+    border-bottom: 2px solid transparent; margin-bottom: -2px;
+  }
+  .tab.active { color: var(--rail); border-bottom-color: var(--rail); font-weight: 600; }
+  .tab .badge {
+    display: inline-block; min-width: 18px; text-align: center;
+    font-size: 10.5px; border-radius: 9px; padding: 1px 6px; margin-left: 6px;
+    background: var(--line); color: var(--ink-soft);
+  }
+  .tab.t-err .badge { background: var(--red-tint); color: var(--red); }
+  .tab.t-warn .badge { background: var(--amber-tint); color: var(--amber); }
+
+  .panel { display: none; }
+  .panel.active { display: block; }
 
   .item {
-    border-left: 3px solid var(--line);
-    padding: 8px 0 8px 14px;
-    margin-bottom: 8px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--line);
+    border-radius: var(--radius);
+    padding: 13px 16px;
+    margin-bottom: 10px;
     font-size: 13.5px;
-    line-height: 1.5;
+    line-height: 1.55;
   }
-  .item.err { border-color: var(--red); }
-  .item.warn { border-color: var(--amber); }
+  .item.err  { border-left-color: var(--red); }
+  .item.warn { border-left-color: var(--amber); }
+  .item.note { border-left-color: var(--rail-mid); }
   .item .rule {
-    font-family: var(--mono);
-    font-size: 11px;
-    color: #6b7a72;
-    display: block;
-    margin-bottom: 2px;
+    font-family: var(--mono); font-size: 11px;
+    color: var(--ink-faint); display: block; margin-bottom: 3px;
+    letter-spacing: .02em;
+  }
+  .item .msg b { color: var(--red); }
+  .item.warn .msg b { color: var(--amber); }
+  .item .memo-ref {
+    display: inline-block; margin-top: 6px;
+    font-size: 11px; color: var(--ink-faint);
+    background: var(--paper); border-radius: 3px; padding: 2px 7px;
   }
 
-  .all-clear {
-    padding: 20px;
-    border: 1px solid var(--rail);
-    background: var(--rail-light);
-    border-radius: 4px;
-    font-size: 14px;
-    color: var(--rail);
+  details.det { margin-top: 9px; }
+  details.det summary {
+    cursor: pointer; font-family: var(--mono); font-size: 11.5px;
+    color: var(--rail); user-select: none;
   }
+  details.det summary:hover { text-decoration: underline; }
+  .idlist {
+    margin-top: 8px;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 10px 12px;
+    font-family: var(--mono); font-size: 11.5px;
+    line-height: 1.9;
+    color: var(--ink-soft);
+    max-height: 260px; overflow: auto;
+    word-break: break-all;
+  }
+  .idlist .chip {
+    display: inline-block; background: white; border: 1px solid var(--line);
+    border-radius: 3px; padding: 0 6px; margin: 0 4px 4px 0;
+  }
+  table.dtl {
+    width: 100%; border-collapse: collapse; margin-top: 8px;
+    font-family: var(--mono); font-size: 11px;
+    background: var(--paper); border: 1px solid var(--line); border-radius: 4px;
+  }
+  table.dtl th, table.dtl td {
+    text-align: left; padding: 5px 9px; border-bottom: 1px solid var(--line);
+  }
+  table.dtl th { color: var(--ink-faint); font-weight: 500; text-transform: uppercase; font-size: 9.5px; letter-spacing: .05em; }
+
+  .empty-panel {
+    padding: 28px; text-align: center;
+    color: var(--ink-faint); font-size: 13.5px;
+    background: var(--card); border: 1px dashed var(--line); border-radius: var(--radius);
+  }
+
+  .actions { margin: 22px 0 0; display: flex; gap: 10px; flex-wrap: wrap; }
+  .actions button {
+    font-family: var(--mono); font-size: 12px;
+    padding: 9px 16px; border-radius: 4px; cursor: pointer;
+    border: 1px solid var(--rail); background: var(--rail); color: white;
+  }
+  .actions button.ghost { background: transparent; color: var(--rail); }
+  .actions button:hover { opacity: .88; }
 
   .footnote {
-    margin-top: 30px;
-    font-size: 12px;
-    color: #7c8a83;
-    line-height: 1.6;
-    border-top: 1px solid var(--line);
-    padding-top: 16px;
+    margin-top: 34px; font-size: 12px; color: var(--ink-faint);
+    line-height: 1.7; border-top: 1px solid var(--line); padding-top: 16px;
   }
   .footnote a { color: var(--rail); }
 
-  .actions { margin-top: 20px; display: flex; gap: 10px; }
-  .actions button {
-    font-family: var(--mono);
-    font-size: 12px;
-    padding: 8px 14px;
-    border: 1px solid var(--rail);
-    background: white;
-    color: var(--rail);
-    border-radius: 4px;
-    cursor: pointer;
+  @media (max-width: 560px) {
+    .wrap { padding: 24px 14px 60px; }
+    .masthead h1 { font-size: 19px; }
   }
-  .actions button:hover { background: var(--rail-light); }
-
-  .loading { display: none; font-family: var(--mono); font-size: 13px; color: #6b7a72; margin-top: 16px; }
 </style>
 
 <div class="wrap">
   <div class="masthead">
-    <h1>Validador GTFS</h1>
-    <span class="tag">Memorando V12.2025 — CIM Tâmega e Sousa</span>
+    <span class="route-badge">CIM TÂMEGA E SOUSA · GTFS</span>
+    <h1>Validador do Memorando</h1>
+    <div class="sub">Gestão de Alterações GTFS — V12.2025 · Verificação de conformidade das concessionárias</div>
   </div>
+
   <p class="subtitle">
-    Verifica o teu feed GTFS (.zip) contra as regras próprias do caderno de encargos —
-    formato de <code>stop_id</code>, <code>trip_headsign</code>, nomenclatura de
-    <code>service_id</code>, ficheiros mínimos e outros campos obrigatórios.
-    Corre inteiramente no browser; nenhum ficheiro é enviado para fora deste separador.
+    Arrasta o feed GTFS (<code>.zip</code>) para validar as regras próprias do caderno de encargos —
+    formato de <code>stop_id</code>, <code>trip_headsign</code>, nomenclatura de <code>service_id</code>,
+    ficheiros mínimos, campos obrigatórios e integridade das referências entre ficheiros.
+    Tudo corre localmente no browser; nenhum ficheiro é enviado para fora deste computador.
   </p>
 
   <div class="dropzone" id="dropzone">
-    <div class="icon">[ ZIP ]</div>
-    <p>Arrasta o ficheiro GTFS (.zip) para aqui</p>
-    <p class="hint">ou clica para escolher um ficheiro</p>
+    <div class="zt">GTFS · ZIP</div>
+    <p>Arrasta o ficheiro para aqui</p>
+    <p class="hint">ou clica para escolher (ex.: UT1.zip, UT2.zip…)</p>
     <input type="file" id="fileInput" accept=".zip" />
   </div>
 
   <div class="filebar" id="filebar">
     <span id="filename"></span>
-    <button id="clearBtn">trocar ficheiro</button>
+    <button id="clearBtn">Validar outro ficheiro</button>
   </div>
 
-  <div class="loading" id="loading">A validar…</div>
+  <div class="loading" id="loading">A ler e validar o feed…<div class="bar"><i></i></div></div>
 
   <div class="report" id="report"></div>
 </div>
 
 <script>
+/* ═══════════════ Configuração das regras ═══════════════ */
 const FICHEIROS_MINIMOS = [
-  "agency.txt", "stops.txt", "routes.txt", "trips.txt",
-  "stop_times.txt", "calendar.txt", "calendar_dates.txt",
-  "shapes.txt", "transfers.txt", "feed_info.txt",
+  "agency.txt","stops.txt","routes.txt","trips.txt","stop_times.txt",
+  "calendar.txt","calendar_dates.txt","shapes.txt","transfers.txt","feed_info.txt",
 ];
 const FICHEIRO_AUXILIAR = "patterns_shapeid.txt";
 const PREFIXO_LOTE = /^(UT[1-4])_/i;
 const REGEX_STOP_ID = /^[a-z]{2,5}_[0-9]+$/;
+const REGEX_HORA = /^\d{1,2}:\d{2}:\d{2}$/;
 const DIAS = ["monday","tuesday","wednesday","thursday","friday","saturday","sunday"];
+// Portugal continental (aprox.)
+const LAT_MIN = 36.8, LAT_MAX = 42.2, LON_MIN = -9.6, LON_MAX = -6.1;
+const LIMITE_LISTA = 400; // máx. de itens mostrados por lista de detalhe
 
+/* ═══════════════ CSV parser ═══════════════ */
 function parseCSV(text) {
-  // Simple CSV parser handling quoted fields
   const rows = [];
-  let i = 0, field = '', row = [], inQuotes = false;
-  text = text.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n');
+  let i = 0, field = '', row = [], inQ = false;
+  text = text.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
   while (i < text.length) {
     const c = text[i];
-    if (inQuotes) {
-      if (c === '"') {
-        if (text[i+1] === '"') { field += '"'; i += 2; continue; }
-        inQuotes = false; i++; continue;
-      }
-      field += c; i++; continue;
-    } else {
-      if (c === '"') { inQuotes = true; i++; continue; }
-      if (c === ',') { row.push(field); field = ''; i++; continue; }
-      if (c === '\n') { row.push(field); rows.push(row); row = []; field = ''; i++; continue; }
+    if (inQ) {
+      if (c === '"') { if (text[i+1] === '"') { field += '"'; i += 2; continue; } inQ = false; i++; continue; }
       field += c; i++; continue;
     }
+    if (c === '"') { inQ = true; i++; continue; }
+    if (c === ',') { row.push(field); field = ''; i++; continue; }
+    if (c === '\n') { row.push(field); rows.push(row); row = []; field = ''; i++; continue; }
+    field += c; i++;
   }
   if (field.length || row.length) { row.push(field); rows.push(row); }
   if (!rows.length) return [];
-  const header = rows[0];
+  const header = rows[0].map(h => h.trim());
   const out = [];
   for (let r = 1; r < rows.length; r++) {
     if (rows[r].length === 1 && rows[r][0] === '') continue;
-    const obj = {};
-    header.forEach((h, idx) => obj[h.trim()] = (rows[r][idx] ?? '').trim());
-    out.push(obj);
+    const o = {};
+    header.forEach((h, idx) => o[h] = (rows[r][idx] ?? '').trim());
+    out.push(o);
   }
   return out;
 }
 
-class Relatorio {
-  constructor() { this.erros = []; this.avisos = []; }
-  erro(regra, msg) { this.erros.push({regra, msg}); }
-  aviso(regra, msg) { this.avisos.push({regra, msg}); }
+/* ═══════════════ Relatório ═══════════════ */
+class Rel {
+  constructor(){ this.erros=[]; this.avisos=[]; this.notas=[]; this.overview={}; }
+  erro(regra,msg,det,ref){ this.erros.push({regra,msg,det,ref}); }
+  aviso(regra,msg,det,ref){ this.avisos.push({regra,msg,det,ref}); }
+  nota(regra,msg,det,ref){ this.notas.push({regra,msg,det,ref}); }
 }
 
-async function lerCSVDoZip(zip, nome) {
-  const f = zip.file(nome);
+async function lerCSV(zip, nome) {
+  const f = zip.file(nome) || zip.file(new RegExp('(^|/)' + nome.replace('.', '\\.') + '$'))[0];
   if (!f) return null;
-  const text = await f.async('string');
-  return parseCSV(text);
+  return parseCSV(await f.async('string'));
 }
+function temFicheiro(zip, nome) {
+  return !!(zip.file(nome) || zip.file(new RegExp('(^|/)' + nome.replace('.', '\\.') + '$')).length);
+}
+function fmtData(s){ return s && s.length===8 ? `${s.slice(6,8)}/${s.slice(4,6)}/${s.slice(0,4)}` : (s||'—'); }
 
+/* ═══════════════ Validação ═══════════════ */
 async function validar(zip) {
-  const rel = new Relatorio();
-  const nomesNoZip = Object.keys(zip.files).map(n => n.split('/').pop());
+  const rel = new Rel();
 
-  for (const ficheiro of FICHEIROS_MINIMOS) {
-    if (!zip.file(ficheiro)) {
-      rel.erro("Ficheiros mínimos", `Falta o ficheiro obrigatório \`${ficheiro}\`.`);
-    }
-  }
-  if (!zip.file(FICHEIRO_AUXILIAR)) {
-    rel.aviso("Ficheiro auxiliar", `Falta o ficheiro auxiliar \`${FICHEIRO_AUXILIAR}\` (deve acompanhar cada nova versão de GTFS, com route_id, pattern_name, direction_id e shape_id).`);
+  /* — ficheiros mínimos — */
+  const emFalta = FICHEIROS_MINIMOS.filter(f => !temFicheiro(zip, f));
+  emFalta.forEach(f => rel.erro(
+    "Ficheiros mínimos", `Falta o ficheiro obrigatório <b>${f}</b>.`, null,
+    "Memorando §3 — lista de 10 ficheiros mínimos"
+  ));
+  if (!temFicheiro(zip, FICHEIRO_AUXILIAR)) {
+    rel.aviso("Ficheiro auxiliar",
+      `Falta o <b>${FICHEIRO_AUXILIAR}</b> — deve acompanhar cada nova versão do GTFS, com route_id, pattern_name, direction_id e shape_id.`,
+      null, "Memorando §3 — ficheiro auxiliar de percursos");
   }
 
-  const agency = await lerCSVDoZip(zip, "agency.txt");
+  /* — leitura — */
+  const [agency, stops, routes, trips, st, cal, cdates, shapes, feedInfo, transfers] =
+    await Promise.all([
+      lerCSV(zip,"agency.txt"), lerCSV(zip,"stops.txt"), lerCSV(zip,"routes.txt"),
+      lerCSV(zip,"trips.txt"), lerCSV(zip,"stop_times.txt"), lerCSV(zip,"calendar.txt"),
+      lerCSV(zip,"calendar_dates.txt"), lerCSV(zip,"shapes.txt"),
+      lerCSV(zip,"feed_info.txt"), lerCSV(zip,"transfers.txt"),
+    ]);
+
+  /* — visão geral — */
+  rel.overview = {
+    'Paragens': stops ? stops.length : '—',
+    'Linhas': routes ? routes.length : '—',
+    'Viagens': trips ? trips.length : '—',
+    'Horários': st ? st.length : '—',
+    'Calendários': cal ? cal.length : '—',
+    'Início': feedInfo && feedInfo[0] ? fmtData(feedInfo[0].feed_start_date) : '—',
+    'Fim': feedInfo && feedInfo[0] ? fmtData(feedInfo[0].feed_end_date) : '—',
+    'Versão': feedInfo && feedInfo[0] ? (feedInfo[0].feed_version || '—') : '—',
+  };
+
+  /* — agency — */
   if (agency) {
-    const vazios = agency.filter(r => !r.agency_name).length;
-    if (vazios) rel.erro("agency.txt", `${vazios} linha(s) com agency_name vazio (deve ser o nome da concessionária).`);
+    const v = agency.filter(r => !r.agency_name);
+    if (v.length) rel.erro("agency.txt", `${v.length} linha(s) com <b>agency_name</b> vazio (deve ser o nome da concessionária).`, null, "Memorando §3(1)");
   }
 
-  const stops = await lerCSVDoZip(zip, "stops.txt");
+  /* — stops — */
   if (stops) {
-    const invalidos = stops.filter(r => !REGEX_STOP_ID.test(r.stop_id || ''));
-    if (invalidos.length) {
-      const ex = invalidos.slice(0,5).map(r => r.stop_id).join(', ');
-      rel.erro("stops.txt — stop_id", `${invalidos.length} stop_id(s) não seguem o formato 'acrónimo_município (minúsculas) + "_" + código numérico'. Exemplos: ${ex}`);
-    }
-    const semZona = stops.filter(r => !r.zone_id).length;
-    if (semZona) rel.aviso("stops.txt — zone_id", `${semZona} paragens sem zone_id preenchido.`);
+    const inval = stops.filter(r => !REGEX_STOP_ID.test(r.stop_id||''));
+    if (inval.length) rel.erro("stops.txt — stop_id",
+      `<b>${inval.length}</b> stop_id não seguem o formato "acrónimo do município em minúsculas + _ + código numérico" (ex.: pnf_896).`,
+      { tipo:'tabela', cab:['stop_id','stop_name'], linhas: inval.map(r=>[r.stop_id, r.stop_name]) },
+      "Memorando §3(2)");
+    const semZona = stops.filter(r => !r.zone_id);
+    if (semZona.length) rel.aviso("stops.txt — zone_id",
+      `${semZona.length} paragens sem <b>zone_id</b> (código da zona tarifária, ex.: PNF1).`,
+      { tipo:'lista', itens: semZona.map(r=>r.stop_id) }, "Memorando §3(2)");
+    const foraPT = stops.filter(r => {
+      const la = parseFloat(r.stop_lat), lo = parseFloat(r.stop_lon);
+      return isNaN(la)||isNaN(lo)|| la<LAT_MIN||la>LAT_MAX||lo<LON_MIN||lo>LON_MAX;
+    });
+    if (foraPT.length) rel.erro("stops.txt — coordenadas",
+      `<b>${foraPT.length}</b> paragens com coordenadas fora de Portugal continental ou inválidas (verificar WGS84 decimal).`,
+      { tipo:'tabela', cab:['stop_id','lat','lon'], linhas: foraPT.map(r=>[r.stop_id,r.stop_lat,r.stop_lon]) },
+      "Memorando §3(2) — WGS84");
+    const cont = {};
+    stops.forEach(r => cont[r.stop_id] = (cont[r.stop_id]||0)+1);
+    const dups = Object.keys(cont).filter(k => cont[k]>1);
+    if (dups.length) rel.erro("stops.txt — duplicados",
+      `<b>${dups.length}</b> stop_id duplicados.`,
+      { tipo:'lista', itens: dups }, "Norma GTFS — chave única");
   }
 
-  const routes = await lerCSVDoZip(zip, "routes.txt");
+  /* — routes — */
   if (routes) {
-    ["route_id","route_short_name","route_long_name","agency_id","route_color","route_text_color"].forEach(campo => {
-      const vazios = routes.filter(r => !r[campo]).length;
-      if (vazios) rel.aviso("routes.txt", `${vazios} linha(s) com '${campo}' vazio.`);
+    ["route_id","route_short_name","route_long_name","agency_id","route_color","route_text_color"].forEach(c => {
+      const v = routes.filter(r => !r[c]);
+      if (v.length) rel.aviso("routes.txt",
+        `${v.length} linha(s) com <b>${c}</b> vazio.`,
+        { tipo:'lista', itens: v.map(r=>r.route_id||'(sem id)') }, "Memorando §3(3)");
     });
   }
 
-  const trips = await lerCSVDoZip(zip, "trips.txt");
+  /* — trips — */
   if (trips) {
-    const semDir = trips.filter(r => !r.direction_id).length;
-    const semShape = trips.filter(r => !r.shape_id).length;
-    const semHeadsign = trips.filter(r => !r.trip_headsign).length;
-    if (semDir) rel.erro("trips.txt — direction_id", `${semDir} viagem(ns) sem direction_id (obrigatório).`);
-    if (semShape) rel.erro("trips.txt — shape_id", `${semShape} viagem(ns) sem shape_id (obrigatório).`);
-    if (semHeadsign) rel.erro("trips.txt — trip_headsign", `${semHeadsign}/${trips.length} viagem(ns) sem trip_headsign (deve identificar o destino/referência, como na bandeira do autocarro).`);
+    const semDir = trips.filter(r => !r.direction_id);
+    const semShape = trips.filter(r => !r.shape_id);
+    const semHead = trips.filter(r => !r.trip_headsign);
+    if (semDir.length) rel.erro("trips.txt — direction_id",
+      `<b>${semDir.length}</b> viagens sem direction_id (obrigatório).`,
+      { tipo:'lista', itens: semDir.map(r=>r.trip_id) }, "Memorando §3(4)");
+    if (semShape.length) rel.erro("trips.txt — shape_id",
+      `<b>${semShape.length}</b> viagens sem shape_id (obrigatório).`,
+      { tipo:'lista', itens: semShape.map(r=>r.trip_id) }, "Memorando §3(4)");
+    if (semHead.length) {
+      const porRota = {};
+      semHead.forEach(r => porRota[r.route_id] = (porRota[r.route_id]||0)+1);
+      rel.erro("trips.txt — trip_headsign",
+        `<b>${semHead.length}</b> de ${trips.length} viagens sem trip_headsign (destino/referência, como na bandeira do autocarro).`,
+        { tipo:'tabela', cab:['route_id','viagens afetadas'],
+          linhas: Object.entries(porRota).sort((a,b)=>b[1]-a[1]).map(([k,v])=>[k,String(v)]) },
+        "Memorando §3(4)");
+    }
   }
 
-  const stopTimes = await lerCSVDoZip(zip, "stop_times.txt");
-  if (stopTimes) {
-    ["arrival_time","departure_time","stop_id","shape_dist_traveled"].forEach(campo => {
-      const vazios = stopTimes.filter(r => !r[campo]).length;
-      if (vazios) rel.erro("stop_times.txt", `${vazios} registo(s) com '${campo}' vazio (obrigatório).`);
+  /* — stop_times — */
+  if (st) {
+    ["arrival_time","departure_time","stop_id","shape_dist_traveled"].forEach(c => {
+      const v = st.filter(r => !r[c]);
+      if (v.length) rel.erro("stop_times.txt",
+        `<b>${v.length}</b> registos com <b>${c}</b> vazio (obrigatório).`,
+        { tipo:'lista', itens: [...new Set(v.map(r=>r.trip_id))] }, "Memorando §3(5)");
     });
+    const horaMa = st.filter(r => r.arrival_time && r.departure_time &&
+      (!REGEX_HORA.test(r.arrival_time) || !REGEX_HORA.test(r.departure_time)));
+    if (horaMa.length) rel.erro("stop_times.txt — formato de hora",
+      `<b>${horaMa.length}</b> registos com hora fora do formato HH:MM:SS.`,
+      { tipo:'tabela', cab:['trip_id','arrival','departure'],
+        linhas: horaMa.map(r=>[r.trip_id,r.arrival_time,r.departure_time]) }, "Norma GTFS");
+    // stop_sequence monotónica por viagem
+    const porTrip = {};
+    st.forEach(r => { (porTrip[r.trip_id] = porTrip[r.trip_id]||[]).push(parseInt(r.stop_sequence)); });
+    const seqMa = Object.keys(porTrip).filter(t => {
+      const s = porTrip[t];
+      return new Set(s).size !== s.length;
+    });
+    if (seqMa.length) rel.erro("stop_times.txt — stop_sequence",
+      `<b>${seqMa.length}</b> viagens com stop_sequence repetida.`,
+      { tipo:'lista', itens: seqMa }, "Norma GTFS");
   }
 
-  const calendar = await lerCSVDoZip(zip, "calendar.txt");
-  if (calendar) {
-    const prefixosLote = calendar.filter(r => PREFIXO_LOTE.test(r.service_id || '')).map(r => r.service_id);
-    const todosOsDias = calendar.filter(r => DIAS.every(d => (r[d] || '0') === '1')).map(r => r.service_id);
-    if (prefixosLote.length) {
-      const ex = [...new Set(prefixosLote)].slice(0,8).join(', ');
-      rel.erro("calendar.txt — service_id", `${prefixosLote.length} service_id(s) usam prefixo de lote/operador (UT1-4) em vez do acrónimo do MUNICÍPIO, como exige o memorando (ex: BAO_E-U). Exemplos: ${ex}`);
-    }
-    if (todosOsDias.length) {
-      const ex = todosOsDias.slice(0,8).join(', ');
-      rel.erro("calendar.txt — separação U/S/DF", `${todosOsDias.length} service_id(s) circulam todos os 7 dias sem estarem separados em três (ex: X-U, X-S, X-DF). Exemplos: ${ex}`);
-    }
+  /* — calendar — */
+  if (cal) {
+    const pfLote = cal.filter(r => PREFIXO_LOTE.test(r.service_id||''));
+    if (pfLote.length) rel.erro("calendar.txt — service_id",
+      `<b>${pfLote.length}</b> service_id usam prefixo de lote/operador (UT1–UT4) em vez do acrónimo do <b>município</b> em maiúsculas (ex.: BAO_E-U).`,
+      { tipo:'lista', itens: pfLote.map(r=>r.service_id) }, "Memorando §3(6)");
+    const todosDias = cal.filter(r => DIAS.every(d => (r[d]||'0')==='1'));
+    if (todosDias.length) rel.erro("calendar.txt — separação U/S/DF",
+      `<b>${todosDias.length}</b> service_id circulam os 7 dias sem estarem separados em três calendários (ex.: X-U, X-S, X-DF).`,
+      { tipo:'lista', itens: todosDias.map(r=>r.service_id) }, "Memorando §3(6)");
   }
 
-  const calendarDates = await lerCSVDoZip(zip, "calendar_dates.txt");
-  if (calendarDates) {
-    const invalidos = calendarDates.filter(r => !["1","2"].includes(r.exception_type));
-    if (invalidos.length) rel.erro("calendar_dates.txt — exception_type", `${invalidos.length} registo(s) com exception_type fora de {1, 2}.`);
+  /* — calendar_dates — */
+  if (cdates) {
+    const inval = cdates.filter(r => !["1","2"].includes(r.exception_type));
+    if (inval.length) rel.erro("calendar_dates.txt — exception_type",
+      `<b>${inval.length}</b> registos com exception_type fora de {1, 2}.`,
+      { tipo:'tabela', cab:['service_id','date','exception_type'],
+        linhas: inval.map(r=>[r.service_id,r.date,r.exception_type]) }, "Memorando §3(7)");
   }
 
-  const shapes = await lerCSVDoZip(zip, "shapes.txt");
+  /* — shapes — */
   if (shapes) {
-    const semDist = shapes.filter(r => !r.shape_dist_traveled).length;
-    if (semDist) rel.erro("shapes.txt — shape_dist_traveled", `${semDist} ponto(s) sem shape_dist_traveled (obrigatório, em metros).`);
+    const semDist = shapes.filter(r => !r.shape_dist_traveled);
+    if (semDist.length) rel.erro("shapes.txt — shape_dist_traveled",
+      `<b>${semDist.length}</b> pontos sem shape_dist_traveled (obrigatório, em metros).`,
+      { tipo:'lista', itens: [...new Set(semDist.map(r=>r.shape_id))] }, "Memorando §3(8)");
   }
 
-  const feedInfo = await lerCSVDoZip(zip, "feed_info.txt");
+  /* — feed_info — */
   if (feedInfo && feedInfo.length) {
     feedInfo.forEach(r => {
-      ["feed_start_date","feed_end_date","feed_version"].forEach(campo => {
-        if (!r[campo]) rel.erro("feed_info.txt", `Campo '${campo}' vazio (obrigatório).`);
+      ["feed_start_date","feed_end_date","feed_version"].forEach(c => {
+        if (!r[c]) rel.erro("feed_info.txt", `Campo <b>${c}</b> vazio (obrigatório).`, null, "Memorando §3(10)");
       });
     });
-  } else if (zip.file("feed_info.txt")) {
-    rel.aviso("feed_info.txt", "Ficheiro presente mas vazio ou ilegível.");
+  } else if (temFicheiro(zip,"feed_info.txt")) {
+    rel.aviso("feed_info.txt", "Ficheiro presente mas vazio ou ilegível.", null, "Memorando §3(10)");
   }
 
-  const transfers = await lerCSVDoZip(zip, "transfers.txt");
+  /* — transfers — */
   if (transfers && transfers.length === 0) {
-    rel.aviso("transfers.txt", "Ficheiro presente mas sem registos.");
+    rel.aviso("transfers.txt", "Ficheiro presente mas sem registos — confirmar se de facto não existem transbordos com ordem de ligação.", null, "Memorando §3(9)");
+  }
+
+  /* — referências cruzadas — */
+  if (stops && trips && st && routes && cal && shapes) {
+    const sIds = new Set(stops.map(r=>r.stop_id));
+    const rIds = new Set(routes.map(r=>r.route_id));
+    const svIds = new Set(cal.map(r=>r.service_id));
+    const shIds = new Set(shapes.map(r=>r.shape_id));
+    const tIds = new Set(trips.map(r=>r.trip_id));
+
+    const stBadStop = st.filter(r => !sIds.has(r.stop_id));
+    if (stBadStop.length) rel.erro("Referências — stop_times → stops",
+      `<b>${stBadStop.length}</b> registos referem stop_id inexistente em stops.txt.`,
+      { tipo:'lista', itens: [...new Set(stBadStop.map(r=>r.stop_id))] }, "Integridade referencial");
+    const stBadTrip = st.filter(r => !tIds.has(r.trip_id));
+    if (stBadTrip.length) rel.erro("Referências — stop_times → trips",
+      `<b>${stBadTrip.length}</b> registos referem trip_id inexistente em trips.txt.`,
+      { tipo:'lista', itens: [...new Set(stBadTrip.map(r=>r.trip_id))] }, "Integridade referencial");
+    const trBadRoute = trips.filter(r => !rIds.has(r.route_id));
+    if (trBadRoute.length) rel.erro("Referências — trips → routes",
+      `<b>${trBadRoute.length}</b> viagens referem route_id inexistente.`,
+      { tipo:'lista', itens: [...new Set(trBadRoute.map(r=>r.route_id))] }, "Integridade referencial");
+    const trBadSv = trips.filter(r => !svIds.has(r.service_id));
+    if (trBadSv.length) rel.erro("Referências — trips → calendar",
+      `<b>${trBadSv.length}</b> viagens referem service_id não definido em calendar.txt.`,
+      { tipo:'lista', itens: [...new Set(trBadSv.map(r=>r.service_id))] }, "Integridade referencial");
+    const trBadSh = trips.filter(r => r.shape_id && !shIds.has(r.shape_id));
+    if (trBadSh.length) rel.erro("Referências — trips → shapes",
+      `<b>${trBadSh.length}</b> viagens referem shape_id inexistente.`,
+      { tipo:'lista', itens: [...new Set(trBadSh.map(r=>r.shape_id))] }, "Integridade referencial");
+    if (cdates) {
+      const cdBad = cdates.filter(r => !svIds.has(r.service_id));
+      if (cdBad.length) rel.erro("Referências — calendar_dates → calendar",
+        `<b>${cdBad.length}</b> exceções referem service_id não definido em calendar.txt.`,
+        { tipo:'lista', itens: [...new Set(cdBad.map(r=>r.service_id))] }, "Integridade referencial");
+    }
+
+    /* — notas informativas — */
+    const svUsados = new Set(trips.map(r=>r.service_id));
+    const svNaoUsados = [...svIds].filter(s => !svUsados.has(s));
+    if (svNaoUsados.length) rel.nota("calendar.txt — calendários não usados",
+      `${svNaoUsados.length} calendários definidos mas nunca usados em trips.txt. Não é erro (podem vir do catálogo comum), mas convém confirmar.`,
+      { tipo:'lista', itens: svNaoUsados.sort() }, "Informativo");
+    const rtSemViagens = [...rIds].filter(r => !new Set(trips.map(t=>t.route_id)).has(r));
+    if (rtSemViagens.length) rel.nota("routes.txt — linhas sem viagens",
+      `${rtSemViagens.length} linhas definidas sem qualquer viagem associada.`,
+      { tipo:'lista', itens: rtSemViagens.sort() }, "Informativo");
   }
 
   return rel;
 }
 
-function render(rel, nomeFicheiro) {
-  const el = document.getElementById('report');
-  const totalErr = rel.erros.length, totalWarn = rel.avisos.length;
-  let html = `
-    <div class="summary">
-      <div class="stat err"><div class="n">${totalErr}</div><div class="l">Erros</div></div>
-      <div class="stat warn"><div class="n">${totalWarn}</div><div class="l">Avisos</div></div>
-      <div class="stat ok"><div class="n">${nomeFicheiro ? '✓' : '—'}</div><div class="l">Ficheiro</div></div>
-    </div>
-  `;
+/* ═══════════════ Render ═══════════════ */
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
 
-  if (!totalErr && !totalWarn) {
-    html += `<div class="all-clear">Nenhuma não conformidade encontrada nas regras verificadas.</div>`;
+function renderDet(det) {
+  if (!det) return '';
+  if (det.tipo === 'lista') {
+    const itens = det.itens.slice(0, LIMITE_LISTA);
+    const resto = det.itens.length - itens.length;
+    return `<details class="det"><summary>Ver os ${det.itens.length} registos</summary>
+      <div class="idlist">${itens.map(i=>`<span class="chip">${esc(i)}</span>`).join('')}
+      ${resto>0?`<div>… e mais ${resto}.</div>`:''}</div></details>`;
   }
-
-  if (totalErr) {
-    html += `<div class="section-label">Erros</div>`;
-    rel.erros.forEach(({regra, msg}) => {
-      html += `<div class="item err"><span class="rule">${regra}</span>${msg}</div>`;
-    });
+  if (det.tipo === 'tabela') {
+    const linhas = det.linhas.slice(0, LIMITE_LISTA);
+    const resto = det.linhas.length - linhas.length;
+    return `<details class="det"><summary>Ver os ${det.linhas.length} registos</summary>
+      <div class="idlist" style="padding:0">
+      <table class="dtl"><thead><tr>${det.cab.map(c=>`<th>${esc(c)}</th>`).join('')}</tr></thead>
+      <tbody>${linhas.map(l=>`<tr>${l.map(c=>`<td>${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody></table>
+      ${resto>0?`<div style="padding:8px 12px">… e mais ${resto}.</div>`:''}</div></details>`;
   }
-  if (totalWarn) {
-    html += `<div class="section-label">Avisos</div>`;
-    rel.avisos.forEach(({regra, msg}) => {
-      html += `<div class="item warn"><span class="rule">${regra}</span>${msg}</div>`;
-    });
-  }
-
-  html += `
-    <div class="footnote">
-      Este relatório cobre apenas as regras específicas do Memorando de Gestão de Alterações GTFS (V12.2025).
-      Corre também o validador oficial
-      <a href="https://gtfs-validator.mobilitydata.org/" target="_blank">gtfs-validator.mobilitydata.org</a>
-      para validação estrutural completa da norma GTFS.
-    </div>
-  `;
-
-  el.innerHTML = html;
-  el.style.display = 'block';
+  return '';
 }
 
-async function processarFicheiro(file) {
+function renderItem(it, cls) {
+  return `<div class="item ${cls}">
+    <span class="rule">${esc(it.regra)}</span>
+    <span class="msg">${it.msg}</span>
+    ${renderDet(it.det)}
+    ${it.ref ? `<span class="memo-ref">${esc(it.ref)}</span>` : ''}
+  </div>`;
+}
+
+let ultimoRel = null, ultimoNome = '';
+
+function render(rel, nome) {
+  ultimoRel = rel; ultimoNome = nome;
+  const el = document.getElementById('report');
+  const nE = rel.erros.length, nA = rel.avisos.length, nN = rel.notas.length;
+
+  let verdict;
+  if (nE) verdict = `<div class="verdict fail"><span class="dot"></span>
+    <div>Não conforme com o memorando<br><small>${nE} erro(s) e ${nA} aviso(s) nas regras verificadas automaticamente</small></div></div>`;
+  else if (nA) verdict = `<div class="verdict warn"><span class="dot"></span>
+    <div>Sem erros, mas com ${nA} aviso(s)<br><small>Rever antes de publicar</small></div></div>`;
+  else verdict = `<div class="verdict pass"><span class="dot"></span>
+    <div>Conforme nas regras verificadas automaticamente<br><small>Regras qualitativas (nomes de paragens, catálogo de calendários…) exigem revisão humana</small></div></div>`;
+
+  const overview = `<div class="overview">${Object.entries(rel.overview)
+    .map(([l,n])=>`<div class="ov"><div class="n">${esc(n)}</div><div class="l">${esc(l)}</div></div>`).join('')}</div>`;
+
+  const tabs = `<div class="tabs">
+    <button class="tab t-err active" data-p="p-err">Erros<span class="badge">${nE}</span></button>
+    <button class="tab t-warn" data-p="p-warn">Avisos<span class="badge">${nA}</span></button>
+    <button class="tab" data-p="p-note">Notas<span class="badge">${nN}</span></button>
+  </div>`;
+
+  const pErr = `<div class="panel active" id="p-err">${
+    nE ? rel.erros.map(i=>renderItem(i,'err')).join('') :
+    '<div class="empty-panel">Nenhum erro encontrado nas regras verificadas.</div>'}</div>`;
+  const pWarn = `<div class="panel" id="p-warn">${
+    nA ? rel.avisos.map(i=>renderItem(i,'warn')).join('') :
+    '<div class="empty-panel">Sem avisos.</div>'}</div>`;
+  const pNote = `<div class="panel" id="p-note">${
+    nN ? rel.notas.map(i=>renderItem(i,'note')).join('') :
+    '<div class="empty-panel">Sem notas informativas.</div>'}</div>`;
+
+  const actions = `<div class="actions">
+    <button id="exportBtn">Descarregar relatório (.md)</button>
+    <button class="ghost" id="printBtn">Imprimir / PDF</button>
+  </div>`;
+
+  const foot = `<div class="footnote">
+    Este relatório cobre as regras automatizáveis do Memorando de Gestão de Alterações GTFS (V12.2025).
+    Regras qualitativas — convenções de <i>stop_name</i>, correspondência com o catálogo de calendários (Anexo I),
+    composição do <i>trip_id</i>, conteúdo do <i>patterns_shapeid.txt</i> — exigem revisão humana.
+    Complementar com o validador oficial da norma:
+    <a href="https://gtfs-validator.mobilitydata.org/" target="_blank">gtfs-validator.mobilitydata.org</a>.
+  </div>`;
+
+  el.innerHTML = verdict + overview + tabs + pErr + pWarn + pNote + actions + foot;
+  el.style.display = 'block';
+
+  el.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
+    el.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+    el.querySelectorAll('.panel').forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+    el.querySelector('#'+t.dataset.p).classList.add('active');
+  }));
+  document.getElementById('exportBtn').addEventListener('click', exportarMD);
+  document.getElementById('printBtn').addEventListener('click', ()=>window.print());
+}
+
+function exportarMD() {
+  if (!ultimoRel) return;
+  const r = ultimoRel;
+  const strip = s => s.replace(/<[^>]+>/g,'');
+  let md = `# Relatório de Validação — Memorando GTFS (CIM Tâmega e Sousa)\n\n`;
+  md += `**Feed:** ${ultimoNome}\n**Data:** ${new Date().toLocaleString('pt-PT')}\n\n`;
+  md += `| | |\n|---|---|\n`;
+  Object.entries(r.overview).forEach(([l,n]) => md += `| ${l} | ${n} |\n`);
+  md += `\n- 🔴 Erros: **${r.erros.length}**\n- 🟠 Avisos: **${r.avisos.length}**\n- ℹ️ Notas: **${r.notas.length}**\n\n`;
+  const sec = (titulo, arr, icone) => {
+    if (!arr.length) return '';
+    let s = `## ${icone} ${titulo}\n\n`;
+    arr.forEach(it => {
+      s += `### ${it.regra}\n${strip(it.msg)}\n`;
+      if (it.ref) s += `_${it.ref}_\n`;
+      if (it.det) {
+        if (it.det.tipo==='lista') s += `\nRegistos: ${it.det.itens.join(', ')}\n`;
+        if (it.det.tipo==='tabela') {
+          s += `\n| ${it.det.cab.join(' | ')} |\n|${it.det.cab.map(()=>'---').join('|')}|\n`;
+          it.det.linhas.forEach(l => s += `| ${l.join(' | ')} |\n`);
+        }
+      }
+      s += '\n';
+    });
+    return s;
+  };
+  md += sec('Erros', r.erros, '🔴') + sec('Avisos', r.avisos, '🟠') + sec('Notas', r.notas, 'ℹ️');
+  md += `\n---\n_Relatório das regras automatizáveis do Memorando V12.2025. Complementar com o validador oficial: https://gtfs-validator.mobilitydata.org/_\n`;
+  const blob = new Blob([md], {type:'text/markdown'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `relatorio_${ultimoNome.replace(/\.zip$/i,'')}.md`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+/* ═══════════════ Upload ═══════════════ */
+async function processar(file) {
   document.getElementById('loading').style.display = 'block';
   document.getElementById('report').style.display = 'none';
   document.getElementById('filebar').style.display = 'flex';
-  document.getElementById('filename').textContent = file.name + '  ·  ' + (file.size/1024/1024).toFixed(2) + ' MB';
+  document.getElementById('filename').textContent = `${file.name} · ${(file.size/1024/1024).toFixed(2)} MB`;
   document.getElementById('dropzone').style.display = 'none';
-
   try {
-    const buffer = await file.arrayBuffer();
-    const zip = await JSZip.loadAsync(buffer);
+    const zip = await JSZip.loadAsync(await file.arrayBuffer());
     const rel = await validar(zip);
     render(rel, file.name);
   } catch (e) {
-    document.getElementById('report').innerHTML = `<div class="item err"><span class="rule">Erro</span>Não foi possível ler o ficheiro: ${e.message}</div>`;
+    document.getElementById('report').innerHTML =
+      `<div class="item err"><span class="rule">Erro de leitura</span>Não foi possível processar o ficheiro: ${esc(e.message)}. Confirma que é um .zip GTFS válido.</div>`;
     document.getElementById('report').style.display = 'block';
   } finally {
     document.getElementById('loading').style.display = 'none';
   }
 }
 
-const dropzone = document.getElementById('dropzone');
-const fileInput = document.getElementById('fileInput');
-
-dropzone.addEventListener('click', () => fileInput.click());
-fileInput.addEventListener('change', (e) => {
-  if (e.target.files[0]) processarFicheiro(e.target.files[0]);
+const dz = document.getElementById('dropzone');
+const fi = document.getElementById('fileInput');
+dz.addEventListener('click', () => fi.click());
+fi.addEventListener('change', e => { if (e.target.files[0]) processar(e.target.files[0]); });
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('drag'));
+dz.addEventListener('drop', e => {
+  e.preventDefault(); dz.classList.remove('drag');
+  if (e.dataTransfer.files[0]) processar(e.dataTransfer.files[0]);
 });
-dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('drag'); });
-dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag'));
-dropzone.addEventListener('drop', (e) => {
-  e.preventDefault();
-  dropzone.classList.remove('drag');
-  const file = e.dataTransfer.files[0];
-  if (file) processarFicheiro(file);
-});
-
 document.getElementById('clearBtn').addEventListener('click', () => {
   document.getElementById('filebar').style.display = 'none';
   document.getElementById('dropzone').style.display = 'block';
   document.getElementById('report').style.display = 'none';
-  fileInput.value = '';
+  fi.value = '';
 });
 </script>
